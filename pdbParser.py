@@ -1,12 +1,11 @@
+from Bio.PDB import *
 
 
+def getStructure(name, filename):
+    parser = PDBParser()
+    structure = parser.get_structure(name, filename)    
+    for atom in structure.get_atoms():
+        print(atom)
 
-def readFile():
-    pdbFile = open("sample.txt", "r")
+getStructure("glukoza", "glucose.pdb")
 
-    for line in pdbFile:
-        lineContent = line.split()
-        if lineContent[0] == "HETATM":
-            print(lineContent)
-
-readFile()

@@ -1,61 +1,12 @@
 
-
-class Atom:
-    def __init__(self, element):
-        self.element = element
-        self.index = -1
-
-class Bond:
-    def __init__(self, symbol):
-        self.symbol = symbol
-        self.firstAtomIndex = -1
-        self.secondAtomIndex = -1
-
-    def getBondType():
-        return -1
-
-#List of bond types
-Bonds = ["-", "=", "#"]
-
-
-class Molecule:
-
-    def __init__(self, name = None):
-        self.name = name
-        self.atoms = []
-        self.bonds = []
-
-    #create new atom object and add it to list
-    def addAtom(self, atomSymbol):
-        atom = Atom(atomSymbol)
-        atom.index = len(self.atoms)
-        self.atoms.append(atom)
-    
-    def addBond(self,type):
-        bond = Bond(type)
-        self.bonds.append(bond)
-
-    def displayMol(self):
-        print("===================")
-        if self.name != None:
-            print("Molecule Name: ")
-            print(self.name)
-
-        print("Molecule Atoms:")
-        for atm in range(len(self.atoms)):
-            print(str(self.atoms[atm].index)+ ". " + self.atoms[atm].element) 
-        print("Molecule Bonds:")
-        for bnd in range(len(self.bonds)):
-            print(str(self.bonds[bnd].firstAtomIndex) + " " 
-                + str(self.bonds[bnd].secondAtomIndex) + " "
-                + self.bonds[bnd].symbol) 
-        print("===================")
+import molecule
+import re
 
 class Parser:
     def __init__(self, smiles = None, name = None):
         self.smiles = smiles
         self.molName = name
-        self.molecule = Molecule(name)
+        self.mol = molecule.Mol(name)
 
     #get smiles
     def getSmiles(self):
@@ -75,29 +26,58 @@ class Parser:
         else: 
             self.setSmiles(smiles)
 
-        #flags
-        sideChain = -1
-        squareBracket = -1
-        isBond = -1
+        parts = re.split(r'(\(.+?\))',smiles)
+        #numer porzadkowy 
+        #wzor stechiometryczny
+        #liczba wodorow
+        #liczba wiazan
 
-        for i,v in enumerate(smiles):
-            #check if char is a Atom
-            if v.isalpha():
-                if isBond == 1:
-                    lastIndex = self.molecule.atoms[-1].index
-                    self.molecule.addAtom(v)
-                    self.molecule.bonds[-1].firstAtomIndex = lastIndex
-                    self.molecule.bonds[-1].secondAtomIndex = self.molecule.atoms[-1].index
-                    isBond = 0
-                else:
-                    self.molecule.addAtom(v)
+        for p in parts:
+            tokens = re.findall('[COSNP]\d*=?|-?|#?|:?|[-=#:][COSNP]',p)
+            while("" in tokens) :
+                tokens.remove("")
+            print('  Part "{}"'.format(p), 'have the following tokens', tokens)
+            
+            for token in tokens:
+                element = re.search('[COSNP]',token)
+                if element:
+                    self.mol.addAtom(element[0])
+
+                Connection = re.search('[COSNP]\d',token)
+                if Connection:
+                    self.mol.atoms[-1].numberConnection = int(Connection[0][1])
                 
-            elif v == "(":
-                sideChain = 1
-                continue
-            elif v == "[":
-                squareBracket = 1
-                continue
-            elif v in Bonds: 
-                isBond = 1
-                self.molecule.addBond(v)
+                atomBond = re.search('[COSNP]l?\d*[-=#:]',token)
+                if atomBond:
+                    self.mol.addBond(atomBond[0][len(atomBond[0])-1])
+                    self.mol.atoms[-1].rightBond = molecule.Bonds.index(atomBond[0][len(atomBond[0])-1])+1
+                    if len(self.mol.atoms)> 1:
+                        if self.mol.atoms[-2].rightBond != 0:
+                            self.mol.atoms[-1].leftBond = self.mol.atoms[-2].rightBond
+
+                else:
+                    self.mol.addBond("-")
+                    #change only for atoms different from the last
+                    #dont change for last in side chain
+                    if p != parts[-1] and token != tokens[-1] or p[0] != "(" and tokens[-1] != token:
+                        self.mol.atoms[-1].rightBond = 1
+                    if self.mol.atoms[-2].rightBond != 0:
+                        self.mol.atoms[-1].leftBond = self.mol.atoms[-2].rightBond
+                
+                sideChain = re.search('[-=#:][COSNP]', token)
+                if sideChain:
+                    self.mol.addBond(sideChain[0][0])
+                    self.mol.atoms[-1].leftBond = molecule.Bonds.index(sideChain[0][0])+1
+                    self.mol.atoms[-2].rightBond = molecule.Bonds.index(sideChain[0][0])+1
+                
+                
+        #create bonds between atoms with number connection
+        for i in range(len(self.mol.atoms)):
+            for j in range(i+1,len(self.mol.atoms)):
+                if self.mol.atoms[i].numberConnection ==self.mol.atoms[j].numberConnection and self.mol.atoms[i].numberConnection != 0:
+                    self.mol.addBond("-")  
+                    self.mol.bonds[-1].firstAtomIndex = i
+                    self.mol.bonds[-1].secondAtomIndex = j
+        
+
+        

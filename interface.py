@@ -12,5 +12,5 @@ while case != 0:
         smiles = input("Smiles string:")
         parser = smilesParser.Parser(smiles, name)
         parser.parse()
-        parser.molecule.displayMol()
+        parser.mol.displayMol()
    
